@@ -13,6 +13,11 @@ from tqdm import tqdm
 NUM_EMO = 4
 
 
+"""
+                        pred = model(a.cuda(), a_len, emoji_a.cuda(), elmo_a)
+
+"""
+
 class HierarchicalAttPredictor(nn.Module):
     """
     A Hierarchical attention taking an email with multiple sentences

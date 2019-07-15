@@ -8,7 +8,7 @@ from utils.early_stopping import EarlyStopping
 import numpy as np
 import copy
 from tqdm import tqdm
-from model.hrlce import HierarchicalPredictor, NUM_EMO
+from model.ha import HierarchicalAttPredictor, NUM_EMO
 from sklearn.metrics import classification_report
 from data.evaluate import load_dev_labels, get_metrics
 import pickle as pkl
@@ -22,6 +22,7 @@ from torchmoji.sentence_tokenizer import SentenceTokenizer
 from torchmoji.global_variables import PRETRAINED_PATH, VOCAB_PATH
 from utils.tweet_processor import processing_pipeline
 import json
+import pandas as pd
 
 parser = argparse.ArgumentParser(description='Options')
 parser.add_argument('-folds', default=9, type=int,
@@ -70,12 +71,14 @@ CLIP = 0.888
 EARLY_STOP_PATIENCE = opt.patience
 LAMBDA1 = opt.lbd1
 LAMBDA2 = opt.lbd2
-FLAT = opt.flat
+FLAT = opt.flatx
+$$$$$$$$$$$$$$$$$Need to be deleted$$$$$$$$$$$$$$$$$$$$$
 EMOS = ['happy', 'angry', 'sad', 'others']
 EMOS_DIC = {'happy': 0,
             'angry': 1,
             'sad': 2,
             'others': 3}
+$$$$$$$$$$$$$$$$$Need to be deleted$$$$$$$$$$$$$$$$$$$$$
 
 # fix random seeds to ensure replicability
 RANDOM_SEED = 0
@@ -105,36 +108,19 @@ emoji_st = SentenceTokenizer(vocabulary, EMOJ_SENT_PAD_LEN)
 ##########  Get Elmo and Emoji Embedding ############
 ##########  Get Elmo and Emoji Embedding ############
 
-def load_data_context(data_path='data/train.txt', is_train=True):
+def load_data_context(data_path='/data/SuperMod/test_data.txt', is_train=True):
+    """
+    input data has only one email per entry, not 3 utterances
+    """
 
     data_list = []
     target_list = []
-    f_data = open(data_path, 'r')
-    data_lines = f_data.readlines()
-    f_data.close()
-
-    for i, text in enumerate(data_lines):
-        # skip the first line
-        if i == 0:
-            continue
-
-        tokens = text.split('\t')
-
-        convers = tokens[1:CONV_PAD_LEN+1]
-
-        # normal preprocessing
-        raw_a = convers[0]
-        raw_b = convers[1]
-        raw_c = convers[2]
-
-        a = processing_pipeline(raw_a)
-        b = processing_pipeline(raw_b)
-        c = processing_pipeline(raw_c)
-
-        data_list.append((a, b, c, raw_a, raw_b, raw_c))
-        if is_train:
-            emo = tokens[CONV_PAD_LEN + 1].strip()
-            target_list.append(EMOS_DIC[emo])
+    
+    df = pd.read_csv(data_path)
+    
+    data_list = df.content.tolist()
+    target_list = df.supermod.tolist()
+    
 
     if is_train:
         return data_list, target_list
@@ -143,13 +129,17 @@ def load_data_context(data_path='data/train.txt', is_train=True):
 
 
 def build_vocab(data_list_list, vocab_size, fill_vocab=False):
+    """
+    get all the words from the list, and sort them by count
+    Then convert them into ids
+    """
 
-    all_str_list = []
-    for data_list in data_list_list:
-        for data in data_list:
-            all_str_list.append(data[0])
-            all_str_list.append(data[1])
-            all_str_list.append(data[2])
+#     all_str_list = []
+#     for data_list in data_list_list:
+#         for data in data_list:
+#             all_str_list.append(data[0])
+#             all_str_list.append(data[1])
+#             all_str_list.append(data[2])
 
     word_count = {}
     word2id = {}
@@ -458,8 +448,7 @@ def main():
     final_test_data_list = load_data_context(data_path=final_test_file, is_train=False)
 
     # build vocab
-    word2id, id2word, num_of_vocab = build_vocab([data_list, dev_data_list, test_data_list], num_of_vocab,
-                                                 FILL_VOCAB)
+    word2id, id2word, num_of_vocab = build_vocab([data_list, dev_data_list, test_data_list], num_of_vocab, FILL_VOCAB)
     emb = build_embedding(id2word, GLOVE_EMB_PATH, num_of_vocab)
 
     gold_dev_data_set = TestDataSet(dev_data_list, CONV_PAD_LEN, SENT_PAD_LEN, word2id, id2word, use_unk=False)
