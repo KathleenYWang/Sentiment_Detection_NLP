@@ -109,9 +109,6 @@ emoji_st = SentenceTokenizer(vocabulary, EMOJ_SENT_PAD_LEN)
 ##########  Get Elmo and Emoji Embedding ############
 
 def load_data_context(data_path='/data/SuperMod/test_data.txt', is_train=True):
-    """
-    input data has only one email per entry, not 3 utterances
-    """
 
     data_list = []
     target_list = []
@@ -121,9 +118,10 @@ def load_data_context(data_path='/data/SuperMod/test_data.txt', is_train=True):
     data_list = df.content.tolist()
     target_list = df.supermod.tolist()
     
+    clean_sent_list = [sent_tokenize(processing_pipeline(email)) for email in data_list]
 
     if is_train:
-        return data_list, target_list
+        return clean_sent_list, target_list
     else:
         return data_list
 
@@ -131,25 +129,19 @@ def load_data_context(data_path='/data/SuperMod/test_data.txt', is_train=True):
 def build_vocab(data_list_list, vocab_size, fill_vocab=False):
     """
     get all the words from the list, and sort them by count
-    Then convert them into ids
+    Then convert them into ids.
+    This is simply word split, can improve with other tokenizer
     """
-
-#     all_str_list = []
-#     for data_list in data_list_list:
-#         for data in data_list:
-#             all_str_list.append(data[0])
-#             all_str_list.append(data[1])
-#             all_str_list.append(data[2])
-
     word_count = {}
     word2id = {}
     id2word = {}
-    for tokens in all_str_list:
-        for word in tokens.split():
-            if word in word_count:
-                word_count[word] += 1
-            else:
-                word_count[word] = 1
+    for emails in data_list_list:
+        for sentence in emails:
+            for word in sentence.split():
+                if word in word_count:
+                    word_count[word] += 1
+                else:
+                    word_count[word] = 1
 
     word_list = [x for x, _ in sorted(word_count.items(), key=lambda v: v[1], reverse=True)]
     print('found', len(word_count), 'words')
@@ -179,6 +171,7 @@ def build_vocab(data_list_list, vocab_size, fill_vocab=False):
         print('filling vocab to', len(id2word))
         return word2id, id2word, len(id2word)
     return word2id, id2word, len(word2id)
+
 
 
 class TrainDataSet(Dataset):
