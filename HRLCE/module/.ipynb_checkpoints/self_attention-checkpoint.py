@@ -126,9 +126,6 @@ class BertAttention(nn.Module):
         if self.output_attentions:
             return attentions, attention_output
         return attention_output
-
-    
-    
     
 class SelfAttentive(nn.Module):
     def __init__(self, hidden_size, att_hops=1, att_unit=200, dropout=0.2):
@@ -175,6 +172,7 @@ class AttentionOneParaPerChan(Module):
             attention_size: Size of the attention vector.
             return_attention: If true, output will include the weight for each input token
                               used for the prediction
+            Did not see return_attention, may be always setting it to True
 
         """
         super(AttentionOneParaPerChan, self).__init__()
@@ -183,8 +181,9 @@ class AttentionOneParaPerChan(Module):
         self.attention_vector.data.normal_(std=0.05)  # Initialize attention vector
         self.is_half = IS_HALF
 
+
     def __repr__(self):
-        s = '{name}({attention_size}, return attention={return_attention})'
+        s = '{name}({attention_size})'
         return s.format(name=self.__class__.__name__, **self.__dict__)
 
     def forward(self, inputs, input_lengths):
