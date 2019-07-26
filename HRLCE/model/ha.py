@@ -9,6 +9,7 @@ from allennlp.modules.elmo import Elmo, batch_to_ids
 import pickle as pkl
 import os
 from tqdm import tqdm
+from allennlp.commands.elmo import ElmoEmbedder
 
 
 """
@@ -21,17 +22,16 @@ The input to this model has to be changed to a list of sentences as email,
 options_file = "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json"
 weight_file = "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
 
-elmo = Elmo(options_file, weight_file, 2, dropout=0).cuda()
-elmo.eval()
+
 
 
 class HierarchicalAttPredictor(nn.Module):
     """
     A Hierarchical attention taking an email with multiple sentences
     """
-    def __init__(self, embedding_dim, hidden_dim, vocab_size, SENT_PAD_LEN, id2word, USE_ELMO, ADD_LINEAR ):
+    def __init__(self, embedding_dim, hidden_dim_s, hidden_dim_e , vocab_size, SENT_PAD_LEN, id2word, USE_ELMO, ADD_LINEAR):
         super(HierarchicalAttPredictor, self).__init__()
-        self.SENT_LSTM_DIM = hidden_dim
+        self.SENT_LSTM_DIM = hidden_dim_s
         self.bidirectional = True
         self.add_linear = ADD_LINEAR
 
@@ -58,14 +58,14 @@ class HierarchicalAttPredictor(nn.Module):
             
         # define LSTM network to be used on a list level
  
-        self.a_lstm = nn.LSTM(embedding_dim + self.elmo_dim, hidden_dim, num_layers=self.num_layers, batch_first=True,
+        self.a_lstm = nn.LSTM(embedding_dim + self.elmo_dim, self.SENT_LSTM_DIM, num_layers=self.num_layers, batch_first=True,
                             bidirectional=self.bidirectional, dropout=0.2)        
-        self.a_self_attention = self.cent_lstm_att_fn(self.sent_lstm_directions*hidden_dim)
+        self.a_self_attention = self.cent_lstm_att_fn(self.sent_lstm_directions*self.SENT_LSTM_DIM)
         # self.a_layer_norm = BertLayerNorm(hidden_dim*self.sent_lstm_directions)
 
 
         self.ctx_bidirectional = True
-        self.ctx_lstm_dim = 800
+        self.ctx_lstm_dim = hidden_dim_e
         self.ctx_lstm_directions = 2 if self.ctx_bidirectional else 1
 
         if not self.add_linear:
@@ -128,19 +128,29 @@ class HierarchicalAttPredictor(nn.Module):
         So further fill it to get to the max sent length
         """
         data_text = [self.glove_tokenizer(x, __id2word) for x in data]
-
+        
         with torch.no_grad():
+            elmo = Elmo(options_file, weight_file, 2, dropout=0).cuda()
+            elmo.eval()
             character_ids = batch_to_ids(data_text).cuda()
-            elmo_emb = elmo(character_ids)['elmo_representations']
-            elmo_emb = (elmo_emb[0] + elmo_emb[1]) / 2  # avg of two layers
-            sent_len = elmo_emb.shape[1]
-            row_num =  elmo_emb.shape[0]
-            elmo_dim = elmo_emb.shape[2]
-            if sent_len < self.sent_pad_len:
-                fill_sent_len = self.sent_pad_len - sent_len
-                # create a bunch of 0's to fill it up
-                filler = torch.zeros([row_num, fill_sent_len, elmo_dim], dtype=torch.float)
-                elmo_emb = torch.cat((elmo_emb, filler.cuda()), dim=1)
+            
+            row_num =  character_ids.shape[0]
+            elmo_dim = self.elmo_dim
+            
+            if torch.sum(character_ids) != 0:
+                elmo_emb = elmo(character_ids)['elmo_representations']     
+                elmo_emb = (elmo_emb[0] + elmo_emb[1]) / 2  # avg of two layers
+            else:
+                elmo_emb = torch.zeros([row_num, self.sent_pad_len, elmo_dim], dtype=torch.float)
+                  
+        
+        sent_len = elmo_emb.shape[1]        
+        
+        if sent_len < self.sent_pad_len:
+            fill_sent_len = self.sent_pad_len - sent_len
+            # create a bunch of 0's to fill it up
+            filler = torch.zeros([row_num, fill_sent_len, elmo_dim], dtype=torch.float)
+            elmo_emb = torch.cat((elmo_emb, filler.cuda()), dim=1)
         return elmo_emb.cuda()
 
 
@@ -223,22 +233,30 @@ class HierarchicalAttPredictor(nn.Module):
             a = list_of_a[:,i,:]
             a_len = list_of_a_len[:,i]
             a_emoji = list_of_a_emoji[:,i,:]
+            
+            row_num = len(a)
         
             # elmo_a: whether to use elmo in this model
             # this lstm does not have emoji
+
             a_out, a_hidden = self.sent_lstm_forward(a, a_len, self.a_lstm,
                                                 attention_layer=self.a_self_attention)
-            
-            # a_out = a_out[:, 0, :]
-            if self.add_linear:
-                a_emoji = self.deepmoji_model(a_emoji)
-                a_emoji = self.deepmoji2linear(a_emoji)
-                a_emoji = F.relu(a_emoji)
-                a_emoji = self.drop_out(a_emoji)
-            else:
-                a_emoji = self.deepmoji_model(a_emoji)
-                a_emoji = F.relu(a_emoji)
 
+            if torch.sum(a_emoji) != 0:
+                # a_out = a_out[:, 0, :]
+                if self.add_linear:
+                    a_emoji = self.deepmoji_model(a_emoji)
+                    a_emoji = self.deepmoji2linear(a_emoji)
+                    a_emoji = F.relu(a_emoji)
+                    a_emoji = self.drop_out(a_emoji)
+                else:
+                    a_emoji = self.deepmoji_model(a_emoji)
+                    a_emoji = F.relu(a_emoji)
+            else:
+                a_emoji = torch.zeros([row_num, self.deepmoji_dim], dtype=torch.float).cuda()
+
+                
+            
             # a_out = torch.cat((F.relu(a_out), a_emoji), dim=1)
             a_out = torch.cat((a_out, a_emoji), dim=1)
             
