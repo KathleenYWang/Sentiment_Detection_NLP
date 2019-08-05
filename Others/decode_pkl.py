@@ -18,4 +18,4 @@ args = parser.parse_args()
 
 with open(args.file, 'rb') as pickle_file:
     obj = pickle.load(pickle_file)
-    pprint.pprint(obj)
+    pprint.pprint(obj[20000:20020])

@@ -36,7 +36,7 @@ def main(PerspectiveAPI):
     with (open(args.file, "rb")) as openfile:
         df = pickle.load(openfile)
         
-    df = df[10000:20000]
+    df = df[50000:]
 
     with open(args.api) as f:
          google_api_key = PerspectiveAPI

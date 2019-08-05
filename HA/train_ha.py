@@ -96,7 +96,8 @@ def main():
         vocabulary = json.load(f)
     emoji_st = SentenceTokenizer(vocabulary, EMOJ_SENT_PAD_LEN)
     
-    result_path = config['output']['result']
+    result_path = config['output']['result'] #place to store metrics of final test data
+    result_path_ind = config['output']['result_ind'] #place predicted score by individual output   
 
     # use pre-built vocab that contains both email and wiki data
     word2id_path = config['infer']['word2id']
@@ -284,6 +285,9 @@ def main():
                         if final_pred_best is not None:
                             del final_pred_best
                         final_pred_best = deepcopy(final_pred_list_test)
+                         # saving model for inference
+                        output_path_ep = opt.out_path[:-4] + '_' + str(num_epoch) + '.pth'
+                        torch.save(model, output_path_ep)
  
                     else:
                         print('not best model, ignoring ...')
@@ -302,8 +306,7 @@ def main():
                 continue
 
             real_test_results.append(np.asarray(final_pred_best))
-            # saving model for inference
-            torch.save(model, opt.out_path)
+
             del model
             break
 
@@ -328,6 +331,8 @@ def main():
     print(np.asarray(final_test_target_list).shape)
     print(np.asarray(mj).shape)    
     get_metrics(np.asarray(final_test_target_list), np.asarray(mj))
+    with open(result_path_ind, 'wb') as w:
+                pkl.dump(real_test_results, w)
     
 
 main()
