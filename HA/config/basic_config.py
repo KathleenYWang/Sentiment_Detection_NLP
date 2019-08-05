@@ -13,16 +13,17 @@ configs = {
     'output':{
         'checkpoint_dir': '/data/SuperMod/hapy_state.pt',
         'cache_dir': BASE_DIR / 'model/',
-        'result': '/data/SuperMod/result_wiki.pkl'
+        'result': '/data/SuperMod/result_wiki_enron_imdb.pkl', #store metrics
+        'result_ind': "/data/SuperMod/final_test_predict_wei.pkl" #store predictions
     },
     
     'emb':{
-        'bert_vocab_path': '/root/projects/SuperMod/SentimentDetectionNLP/bertmodel/pybert/model/pretrain/uncased_L-12_H-768_A-12/vocab.txt',
+        'bert_vocab_path': '/data/bert/uncased_L-12_H-768_A-12/vocab.txt',
         'glove_path': '/data/glove/glove.840B.300d.txt'
         },
 
     'train':{
-        'EMAI_PAD_LEN': 12,
+        'EMAI_PAD_LEN': 10,
         'EMOJ_SENT_PAD_LEN': 30,
         'SENT_PAD_LEN': 30,   
         'FILL_VOCAB': True,
@@ -49,10 +50,12 @@ configs = {
         'SENT_EMB_DIM': 300,
         'elmo_dim': 1024,
         'layers': 2,
-        'SENT_HIDDEN_SIZE': 1200,
+        'SENT_HIDDEN_SIZE': 1000,
         'CTX_LSTM_DIM': 100,
-        'elmo_o': "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json",
-        'elmo_w': "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
+#         'elmo_o': "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json",
+#         'elmo_w': "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
+        'elmo_o': "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json",
+        'elmo_w': "https://allennlp.s3.amazonaws.com/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5"
          },
     
     
@@ -61,7 +64,7 @@ configs = {
         'batch_size':400,
         'word2id': '/data/SuperMod/word2id.pkl',
         'id2word': '/data/SuperMod/id2word.pkl',
-        'result': '/data/SuperMod/infer_result.pkl'
+        'result': '/data/SuperMod/infer_result_wei.pkl'
         
         
     },
