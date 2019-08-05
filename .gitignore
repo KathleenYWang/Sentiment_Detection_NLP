@@ -1,0 +1,8 @@
+# ignore python checkpoints
+.ipynb_checkpoints/
+HA/.ipynb_checkpoints/
+
+# ignore pycache
+__pycache__/
+HA/module/__pycache__/
+HA/config/__pycache__/ 
