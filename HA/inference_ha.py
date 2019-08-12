@@ -35,6 +35,8 @@ parser.add_argument('-test_path', type=str,
                     help="please specify the test data input")
 parser.add_argument('-out_path', type=str,
                     help="please specify the path to save the model")
+parser.add_argument('-infer_result', default=config['infer']['result'], type=str,
+                    help="please specify the path to save the inferred results")
 
 opt = parser.parse_args()
 
@@ -68,8 +70,8 @@ def main():
     bert_vocab_path = config['emb']['bert_vocab_path']
 
     result_path = config['output']['result']
-    val_result_path =  config['infer']['result']
-
+#     val_result_path =  config['infer']['result']
+    val_result_path = opt.infer_result
     torch.manual_seed(RANDOM_SEED)
     torch.cuda.manual_seed(RANDOM_SEED)
     torch.cuda.manual_seed_all(RANDOM_SEED)
